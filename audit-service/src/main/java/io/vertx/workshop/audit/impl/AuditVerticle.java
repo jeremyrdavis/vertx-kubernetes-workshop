@@ -87,10 +87,11 @@ public class AuditVerticle extends AbstractVerticle {
      * @return the database configuration.
      */
     private JsonObject getDatabaseConfiguration() {
-        return new JsonObject().put("user", "admin")
-            .put("password", "secret")
-            .put("driver_class", "org.postgresql.Driver")
-            .put("url", "jdbc:postgresql://audit-database:5432/audit");
+        return new JsonObject()
+                .put("user", System.getenv("DB_USERNAME"))
+                .put("password", System.getenv("DB_PASSWORD"))
+                .put("driver_class", "org.postgresql.Driver")
+                .put("url", System.getenv("DB_URL"));
     }
 
     @Override
