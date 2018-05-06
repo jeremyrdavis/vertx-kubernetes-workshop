@@ -58,8 +58,13 @@ public class AuditVerticle extends AbstractVerticle {
             // TODO
             // ----
 
-            Single<MessageConsumer<JsonObject>> readySingle = Single
-                .error(new UnsupportedOperationException("Not implemented yet"));
+            Single<JDBCClient> databaseReady = jdbc
+                    .flatMap(client -> initializeDatabase(client, true));
+            Single<HttpServer> httpServerReady = configureTheHTTPServer();
+            Single<MessageConsumer<JsonObject>> messageConsumerReady = retrieveThePortfolioMessageSource();
+
+            Single<MessageConsumer<JsonObject>> readySingle = Single.zip(databaseReady, httpServerReady,
+                    messageConsumerReady, (db, http, consumer) -> consumer);
 
             // ----
 
