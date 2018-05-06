@@ -38,7 +38,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         // TODO Call the given handler with a successful Async Result encapsulating the `portfolio` object
         // The async result instance is created using `Future.succeededFuture`
         // ----
-        
+        resultHandler.handle(Future.succeededFuture(portfolio));
         // ----
     }
 
@@ -46,7 +46,12 @@ public class PortfolioServiceImpl implements PortfolioService {
         // TODO Broadcast a JSON message to the `EVENT_ADDRESS` containing the following keys: "action", "quote", "date"
         // (use System.currentTimeMillis()), "amount" and "owned" (newAmount)
         // ----
-
+        vertx.eventBus().publish(EVENT_ADDRESS, new JsonObject()
+                .put("action", action)
+                .put("quote", quote)
+                .put("date", System.currentTimeMillis())
+                .put("amount", amount)
+                .put("owned", newAmount));
         // ----
     }
 
@@ -54,7 +59,17 @@ public class PortfolioServiceImpl implements PortfolioService {
     public void evaluate(Handler<AsyncResult<Double>> resultHandler) {
         // TODO
         // ----
-        
+        Single<WebClient> quotes = HttpEndpoint
+                .rxGetWebClient(discovery,
+                        rec -> rec.getName().equals("quote-generator")
+                );
+        quotes.subscribe((client, err) -> {
+            if (err != null) {
+                resultHandler.handle(Future.failedFuture(err));
+            } else {
+                computeEvaluation(client, resultHandler);
+            }
+        });
         // ---
     }
 
@@ -80,11 +95,15 @@ public class PortfolioServiceImpl implements PortfolioService {
     private Single<Double> getValueForCompany(WebClient client, String company, int numberOfShares) {
         //TODO
         //----
-
-        return Single.just(0.0);
+            //----
+            return client.get("/?name=" + encode(company))
+                    .as(BodyCodec.jsonObject())
+                    .rxSend()
+                    .map(HttpResponse::body)
+                    .map(json -> json.getDouble("bid"))
+                    .map(val -> val * numberOfShares);
+            // ---
         // ---
-
-
     }
 
 

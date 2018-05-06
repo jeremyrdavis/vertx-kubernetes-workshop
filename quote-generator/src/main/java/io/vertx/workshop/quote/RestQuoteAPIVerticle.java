@@ -26,12 +26,14 @@ public class RestQuoteAPIVerticle extends AbstractVerticle {
             // TODO Extract the body of the message using `.map(msg -> {})`
             // ----
             //
+                .map(Message::body)
             // ----
             // TODO For each message, populate the `quotes` map with the received quote. Use `.doOnNext(json -> {})`
             // Quotes are json objects you can retrieve from the message body
             // The map is structured as follows: name -> quote
             // ----
             //
+                .doOnNext(json -> quotes.put(json.getString("name"), json))
             // ----
             .subscribe();
 
@@ -49,8 +51,18 @@ public class RestQuoteAPIVerticle extends AbstractVerticle {
                 // ----
 
                 // Remove this line
-                response.end(Json.encodePrettily(quotes));
-                
+                String company = request.getParam("name");
+                if (company == null) {
+                    String content = Json.encodePrettily(quotes);
+                    response.end(content);
+                } else {
+                    JsonObject quote = quotes.get(company);
+                    if (quote == null) {
+                        response.setStatusCode(404).end();
+                    } else {
+                        response.end(quote.encodePrettily());
+                    }
+                }
                 // ----
             })
         .subscribe();
