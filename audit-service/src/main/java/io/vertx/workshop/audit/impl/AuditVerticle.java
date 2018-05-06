@@ -117,9 +117,11 @@ public class AuditVerticle extends AbstractVerticle {
 
         //TODO
         //----
-
-        return Single
-            .error(new UnsupportedOperationException("Not implemented yet"));
+        Router router = Router.router(vertx);
+        router.get("/").handler(this::retrieveOperations);
+        return vertx.createHttpServer()
+                .requestHandler(router::accept)
+                .rxListen(8080);
         //----
 
     }
