@@ -119,9 +119,15 @@ public class AuditVerticle extends AbstractVerticle {
         //----
         Router router = Router.router(vertx);
         router.get("/").handler(this::retrieveOperations);
-        return vertx.createHttpServer()
-                .requestHandler(router::accept)
-                .rxListen(8080);
+        router.get("/health").handler(rc -> {
+            if (ready) {
+                rc.response().end("Ready");
+            } else {
+                // Service not yet available
+                rc.response().setStatusCode(503).end();
+            }
+        });
+        return vertx.createHttpServer().requestHandler(router::accept).rxListen(8080);
         //----
 
     }
@@ -167,6 +173,30 @@ public class AuditVerticle extends AbstractVerticle {
         // To handle such a process, we are going to create an RxJava Single and compose it with the RxJava flatMap operation:
         // retrieve the connection -> drop table -> create table -> close the connection
         // For this we use `Func1<X, Single<R>>`that takes a parameter `X` and return a `Single<R>` object.
+
+        // This is the starting point of our operations
+        // This single will be completed when the connection with the database is established.
+        // We are going to use this single as a reference on the connection to close it.
+        Single<SQLConnection> connectionRetrieved = jdbc.rxGetConnection();
+        connectionRetrieved
+                .flatMap(conn -> {
+                    // When the connection is retrieved
+
+                    // Prepare the batch
+                    List<String> batch = new ArrayList<>();
+                    if (drop) {
+                        // When the table is dropped, we recreate it
+                        batch.add(DROP_STATEMENT);
+                    }
+                    // Just create the table
+                    batch.add(CREATE_TABLE_STATEMENT);
+
+                    // We compose with a statement batch
+                    Single<List<Integer>> next = conn.rxBatch(batch);
+
+                    // Whatever the result, if the connection has been retrieved, close it
+                    return next.doAfterTerminate(conn::close);
+                }).map(list -> client);;
 
         return Single.error(new UnsupportedOperationException("Not implemented yet"));
         // ----
