@@ -109,7 +109,26 @@ public class AuditVerticle extends AbstractVerticle {
 
         //TODO
         // ----
-
+        // 1. Get the connection
+        jdbc.getConnection(ar -> {
+            SQLConnection connection = ar.result();
+            if (ar.failed()) {
+                context.fail(ar.cause());
+            } else {
+                // 2. When done, execute the query
+                connection.query(SELECT_STATEMENT, result -> {
+                    // 3. When done, iterate over the result to build a list
+                    ResultSet set = result.result();
+                    List<JsonObject> operations = set.getRows().stream()
+                            .map(json -> new JsonObject(json.getString("operation")))
+                            .collect(Collectors.toList());
+                    // 5. write this list into the response
+                    context.response().setStatusCode(200).end(Json.encodePrettily(operations));
+                    // 6. close the connection
+                    connection.close();
+                });
+            }
+        });
         // ----
     }
 
