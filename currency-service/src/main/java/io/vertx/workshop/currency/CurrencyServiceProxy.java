@@ -50,28 +50,34 @@ public class CurrencyServiceProxy extends AbstractVerticle {
 
     private void delegateWithCircuitBreaker(RoutingContext rc) {
         HttpEndpoint.rxGetWebClient(discovery, svc -> svc.getName().equals("currency-3rdparty-service"))
-            .flatMap(client -> {
+                .flatMap(client ->
 
-                // TODO
-                // Use the circuit breaker (circuit) to call the service. Use the rxExecuteCommandWithFallback` method.
-                // This methods takes 2 parameters: the first one if a function taking a `Future` as parameter and
-                // needs to report the success or failure on this future. The second method is a function providing
-                // the fallback result. You must provide a JSON object as response. For the fallback use:
-                // new JsonObject()
-                //      .put("amount", rc.getBodyAsJson().getDouble("amount"))
-                //      .put("currency", "USD"))
-                // In the first function, use the given client, emit a POST request on / containing the incoming
-                // payload (rc.getBodyAsJson()). Extract the response payload as JSON (bodyAsJsonObject). Don't
-                // forget to subscribe (you can use subscribe(toObserver(fut)). You can have a look to the `delegate`
-                // method as example.
-                // -----
-                return Single.just(new JsonObject().put("amount", 0.0).put("currency", "N/A"));
-            })
-            // ----
-            .map(JsonObject::toBuffer)
-            .map(Buffer::new)
+                        // TODO
+                        // Use the circuit breaker (circuit) to call the service. Use the rxExecuteCommandWithFallback` method.
+                        // This methods takes 2 parameters: the first one if a function taking a `Future` as parameter and
+                        // needs to report the success or failure on this future. The second method is a function providing
+                        // the fallback result. You must provide a JSON object as response. For the fallback use:
+                        // new JsonObject()
+                        //      .put("amount", rc.getBodyAsJson().getDouble("amount"))
+                        //      .put("currency", "USD"))
+                        // In the first function, use the given client, emit a POST request on / containing the incoming
+                        // payload (rc.getBodyAsJson()). Extract the response payload as JSON (bodyAsJsonObject). Don't
+                        // forget to subscribe (you can use subscribe(toObserver(fut)). You can have a look to the `delegate`
+                        // method as example.
+                        // -----
+                        circuit.rxExecuteCommandWithFallback(
+                                fut ->
+                                        client.post("/").rxSendJsonObject(rc.getBodyAsJson())
+                                                .map(HttpResponse::bodyAsJsonObject)
+                                                .subscribe(toObserver(fut)),
+                                err -> new JsonObject()
+                                        .put("amount", rc.getBodyAsJson().getDouble("amount"))
+                                        .put("currency", "USD")))
 
-            .subscribe(toObserver(rc));
+                // ----
+                .map(JsonObject::toBuffer)
+                .map(Buffer::new)
+                .subscribe(toObserver(rc));
     }
 
     /**
